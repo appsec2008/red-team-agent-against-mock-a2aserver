@@ -1,3 +1,4 @@
+
 // src/ai/flows/red-team-agent-resource-exhaustion.ts
 'use server';
 
@@ -24,7 +25,12 @@ const RedTeamAgentResourceExhaustionOutputSchema = z.object({
 export type RedTeamAgentResourceExhaustionOutput = z.infer<typeof RedTeamAgentResourceExhaustionOutputSchema>;
 
 export async function redTeamAgentResourceExhaustion(input: RedTeamAgentResourceExhaustionInput): Promise<RedTeamAgentResourceExhaustionOutput> {
-  return redTeamAgentResourceExhaustionFlow(input);
+  // API Key Workaround: Return placeholder data
+  return {
+    vulnerabilityReport: "Placeholder Report (Resource Exhaustion): API key issue workaround. This is a static report.\n- Agent can be prompted to perform computationally intensive tasks in a loop, leading to potential DoS.\n- No apparent limits on the number of concurrent tasks an agent can initiate.",
+    interactionLog: "Placeholder Log (Resource Exhaustion): API key issue workaround. This is a static log.\nSimulated sending 1000 rapid requests to an agent endpoint that performs complex calculations. Specification does not mention rate limiting for this endpoint."
+  };
+  // Original call: return redTeamAgentResourceExhaustionFlow(input);
 }
 
 const prompt = ai.definePrompt({
