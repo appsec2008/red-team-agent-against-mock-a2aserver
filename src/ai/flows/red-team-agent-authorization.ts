@@ -27,7 +27,7 @@ const RedTeamAgentAuthorizationOutputSchema = z.object({
     .describe('A detailed report of identified vulnerabilities, risks, and recommendations related to Agent Authorization and Control Hijacking.'),
   interactionLog: z
     .string()
-    .describe('A log of simulated client-server interactions (API requests and predicted responses based on the spec) during the red team testing for Agent Authorization and Control Hijacking.'),
+    .describe('A log of simulated client-server interactions (API requests and predicted responses based on the spec) during the red team testing for Agent Authorization and Control Hijacking, formatted as Markdown tables.'),
 });
 export type RedTeamAgentAuthorizationOutput = z.infer<
   typeof RedTeamAgentAuthorizationOutputSchema
@@ -36,7 +36,16 @@ export type RedTeamAgentAuthorizationOutput = z.infer<
 export async function redTeamAgentAuthorization(
   input: RedTeamAgentAuthorizationInput
 ): Promise<RedTeamAgentAuthorizationOutput> {
-  return redTeamAgentAuthorizationFlow(input);
+  // return redTeamAgentAuthorizationFlow(input);
+  // Re-enabled AI call
+    const {output} = await redTeamAgentAuthorizationFlow(input);
+    if (!output) {
+      return {
+        vulnerabilityReport: "Error: No output from Agent Authorization prompt. The AI model might have returned an empty response.",
+        interactionLog: "Interaction log unavailable due to an error in generating a response from the AI model for Agent Authorization."
+      };
+    }
+    return output;
 }
 
 const redTeamAgentAuthorizationPrompt = ai.definePrompt({
@@ -50,27 +59,19 @@ A2A Server Specification to Analyze:
 
 Your first step is to thoroughly 'discover' the A2A server by meticulously parsing its provided specification. Identify all documented API endpoints, authentication methods, roles, permissions, and data formats. This understanding will form the basis of your subsequent attack simulations.
 
-Based on your analysis of the A2A server specification, you will simulate attempts to exploit vulnerabilities according to the following test requirements. Formulate a series of simulated multi-turn interactions. For each interaction, detail the API request you (as the client) would make and the server's likely response based *only* on the provided specification.
+Based on your analysis of the A2A server specification, you will simulate attempts to exploit vulnerabilities according to the following test requirements. Iterate through each "Test Requirement" section below. For each section, devise specific test cases based on its "Actionable Steps" and any "Example Prompts."
+
+For each individual test case you devise, you must:
+1.  **Formulate Client Action:** Detail the simulated HTTP Method, Endpoint, Headers, and Body the Red Team A2A Client would send.
+2.  **Define Expected Secure Server Behavior:** Briefly describe how a secure server *should* ideally react to this specific request.
+3.  **Predict Server Response (Based on Specification):** Describe the likely Status Code and Body/Message from the A2A server, *explicitly stating how the provided A2A Server Specification leads to this prediction*.
+4.  **Judge Vulnerability & Determine Success/Failure:** Based on the simulated action and predicted spec-based response, clearly state if it indicates a vulnerability (Failure) or secure behavior (Success).
 
 Generate two outputs:
-1.  A comprehensive 'vulnerabilityReport': This report should detail your findings, identified weaknesses, potential impact of exploitation, and recommended mitigations.
-2.  A detailed 'interactionLog': This log must capture your simulated tests. For each test case or simulated interaction, structure the log clearly as follows:
+1.  A comprehensive 'vulnerabilityReport': This report should be a narrative summary of your overall findings, identified weaknesses, potential impact of exploitation, and recommended mitigations for Agent Authorization and Control Hijacking.
+2.  A detailed 'interactionLog': This log must capture your simulated tests. For each "Test Requirement" section, generate a Markdown table. Each table should have columns: "Test Case Description", "Client Action (Simulated Request)", "Expected Secure Server Behavior", "Predicted Server Response (from Spec)", and "Vulnerability Indication / Judgement (Success/Failure)".
 
-    *   **Test Case:** [Clearly state the specific vulnerability or area you are testing, e.g., "Direct Control Hijacking - Exploiting Internal Testing Endpoint via Static API Key"]
-    *   **Client Action (Red Team A2A Client):**
-        *   Method: [e.g., POST, GET]
-        *   Endpoint: [e.g., /execute_internal_command]
-        *   Headers: [Specify all relevant headers, e.g., {"X-API-Key": "INTERNAL_DEV_SHARED_KEY_001", "Content-Type": "application/json", "Spoofed-User-Role": "system_administrator"}]
-        *   Body: [Provide the JSON body if applicable, e.g., {"command_string": "REBOOT_CRITICAL_SERVER_X", "target_node_ip": "10.0.0.5"}]
-    *   **Expected Secure Server Behavior:**
-        *   [Briefly describe how a secure server *should* ideally react to this specific request, e.g., "The server should reject unauthorized commands, validate all inputs, enforce MFA for critical actions, and log all attempts."]
-    *   **Simulated Server Response (Based on the provided A2A Server Specification):**
-        *   Status Code: [e.g., 200 OK, 403 Forbidden, 500 Internal Server Error]
-        *   Body/Message: [Describe the response body or key message. Explicitly reference parts of the specification that lead to this simulated behavior, especially if it indicates a vulnerability. e.g., {"status": "command_accepted", "message": "Command executed. Spec paragraph X.Y states this endpoint bypasses standard role checks with the static key."}]
-    *   **Vulnerability Indication:**
-        *   [Clearly state the vulnerability exposed by this simulated interaction, e.g., "Critical vulnerability: Hardcoded static API key allows unauthenticated, unauthorized execution of privileged commands. Lack of logging for this action (Spec section Z) prevents detection."]
-
-Ensure your entire interactionLog follows this structured, client-server simulation approach. The A2A server specification is your *sole source of truth* for predicting server behavior.
+Ensure your entire interactionLog is structured with these Markdown tables. The A2A server specification is your *sole source of truth* for predicting server behavior.
 
 Test Requirements for Agent Authorization and Control Hijacking:
 
@@ -165,7 +166,7 @@ Assess whether the agent’s permissions are assigned on a just-in-time and task
 - After simulated task completion, audit the agent's permission set (as per spec) to confirm all temporary elevated access has been revoked.
 - Simulate a scenario requiring the agent to temporarily elevate its permissions for a critical task, then verify the specified automatic revocation of these permissions immediately upon task completion.
 
-Remember to generate both the 'vulnerabilityReport' and the 'interactionLog' as described.
+Remember to generate both the 'vulnerabilityReport' (as a narrative summary) and the 'interactionLog' (with Markdown tables for each Test Requirement section as described above).
 `,
 });
 
@@ -177,6 +178,12 @@ const redTeamAgentAuthorizationFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await redTeamAgentAuthorizationPrompt(input);
+    if (!output) {
+      return {
+        vulnerabilityReport: "Error: No output from Agent Authorization prompt. The AI model might have returned an empty response.",
+        interactionLog: "Interaction log unavailable due to an error in generating a response from the AI model for Agent Authorization."
+      };
+    }
     return output!;
   }
 );
