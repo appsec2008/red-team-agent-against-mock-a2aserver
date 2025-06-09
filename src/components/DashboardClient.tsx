@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, type ChangeEvent } from "react";
@@ -11,8 +12,9 @@ import { THREAT_CATEGORIES, type ThreatCategoryResult, normalizeFlowOutput, type
 import { ThreatCategoryCard } from "./ThreatCategoryCard";
 import { VulnerabilityReportView } from "./VulnerabilityReportView";
 import { InteractionLogView } from "./InteractionLogView";
-import { ShieldCheck, AlertTriangle } from "lucide-react";
+import { ShieldCheck, AlertTriangle, RefreshCw, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { discoverA2AServer, type DiscoverA2AServerOutput } from "@/ai/flows/discover-a2a-server-flow";
 
 
 type ThreatCategoryStatus = "idle" | "loading" | "success" | "error";
@@ -23,17 +25,46 @@ export function DashboardClient() {
   const [threatResults, setThreatResults] = useState<ThreatResults>({});
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"report" | "log">("report");
+  const [isDiscovering, setIsDiscovering] = useState<boolean>(false);
   const { toast } = useToast();
 
   const handleSpecChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     setA2aServerSpec(event.target.value);
   };
 
+  const handleDiscoverServer = async () => {
+    setIsDiscovering(true);
+    try {
+      const output: DiscoverA2AServerOutput = await discoverA2AServer();
+      if (output && output.discoveredSpecification) {
+        setA2aServerSpec(output.discoveredSpecification);
+        toast({
+          title: "Mock Server Specification Generated",
+          description: "The A2A server specification has been populated in the text area.",
+        });
+      } else {
+        // This case might occur if the AI returns an empty or malformed response
+        throw new Error("AI failed to generate a valid specification.");
+      }
+    } catch (error) {
+      console.error("Error discovering server spec:", error);
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during discovery.";
+      setA2aServerSpec(`Error: Could not generate A2A server specification.\n${errorMessage}`);
+      toast({
+        title: "Discovery Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsDiscovering(false);
+    }
+  };
+
   const handleRunTest = async (categoryId: string) => {
     if (!a2aServerSpec && categoryId !== 'supplyChain') {
       toast({
         title: "Missing Specification",
-        description: "Please provide the A2A Server Specification before running tests.",
+        description: "Please provide the A2A Server Specification or use 'Discover' to generate one before running tests.",
         variant: "destructive",
       });
       return;
@@ -42,7 +73,7 @@ export function DashboardClient() {
     const category = THREAT_CATEGORIES.find(tc => tc.id === categoryId);
     if (!category) return;
 
-    setSelectedCategoryId(categoryId); // Select the category when test is run
+    setSelectedCategoryId(categoryId);
     setThreatResults(prev => ({
       ...prev,
       [categoryId]: { result: prev[categoryId]?.result || null, status: "loading" },
@@ -67,7 +98,7 @@ export function DashboardClient() {
         ...prev,
         [categoryId]: { 
           result: { 
-            vulnerabilityReport: `Error: ${errorMessage}`, 
+            vulnerabilityReport: `Error during test: ${errorMessage}`, 
             interactionLog: `Error during test execution for ${category.name}. Check console for details.`
           }, 
           status: "error" 
@@ -103,17 +134,35 @@ export function DashboardClient() {
             <CardHeader>
               <CardTitle className="font-headline text-xl">A2A Server Specification</CardTitle>
               <CardDescription>
-                Provide the technical specifications or initial instructions for the A2A server to be tested.
+                Paste the technical specifications for the A2A server, or click Discover to generate a mock specification.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Textarea
-                placeholder="Paste A2A server specification here..."
+                placeholder="Paste A2A server specification here, or click 'Discover & Generate' below..."
                 value={a2aServerSpec}
                 onChange={handleSpecChange}
                 className="min-h-[150px] font-code text-sm"
                 rows={8}
               />
+              <Button 
+                onClick={handleDiscoverServer} 
+                disabled={isDiscovering}
+                variant="outline"
+                className="mt-3 w-full"
+              >
+                {isDiscovering ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Generating Spec...
+                  </>
+                ) : (
+                  <>
+                    <Search className="mr-2 h-4 w-4" />
+                    Discover & Generate Mock A2A Server Spec
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
 
@@ -133,7 +182,7 @@ export function DashboardClient() {
                       status={threatResults[category.id]?.status || "idle"}
                       isSelected={selectedCategoryId === category.id}
                       onSelect={setSelectedCategoryId}
-                      disabled={!a2aServerSpec && category.id !== 'supplyChain'}
+                      disabled={(!a2aServerSpec || a2aServerSpec.startsWith("Error:")) && category.id !== 'supplyChain'}
                     />
                   ))}
                 </div>
@@ -204,7 +253,7 @@ export function DashboardClient() {
             <Card className="h-full flex items-center justify-center mt-2">
               <CardContent>
                 <p className="text-muted-foreground text-lg text-center">
-                  Select a threat category and provide an A2A Server Specification to begin testing.
+                  Select a threat category and provide an A2A Server Specification (or generate one) to begin testing.
                 </p>
               </CardContent>
             </Card>
