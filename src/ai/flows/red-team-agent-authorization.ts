@@ -27,7 +27,7 @@ const RedTeamAgentAuthorizationOutputSchema = z.object({
     .describe('A detailed report of identified vulnerabilities, risks, and recommendations related to Agent Authorization and Control Hijacking.'),
   interactionLog: z
     .string()
-    .describe('A summarized log of testing approaches and key findings for Agent Authorization and Control Hijacking.'),
+    .describe('A textual log detailing simulated multi-step testing for each of the 7 test requirements, including client actions, predicted server responses based on the spec, and vulnerability judgments.'),
 });
 export type RedTeamAgentAuthorizationOutput = z.infer<
   typeof RedTeamAgentAuthorizationOutputSchema
@@ -45,19 +45,20 @@ export async function redTeamAgentAuthorization(
     if (!output) {
       errorMessages.push("Error: The AI model returned no output for Agent Authorization.");
     } else {
-      if (!report) {
+      if (!report || report.trim() === "") {
         errorMessages.push("Error: The AI model failed to generate the vulnerability report for Agent Authorization.");
       }
-      if (!log) {
-        errorMessages.push("Error: The AI model failed to generate the interaction log for Agent Authorization.");
+      if (!log || log.trim() === "") {
+        errorMessages.push("Error: The AI model failed to generate the interaction log for Agent Authorization. The prompt might be too complex for a single response.");
       }
     }
 
     if (errorMessages.length > 0) {
       const combinedErrorMessage = errorMessages.join(' ');
+      // Return partial results if available, otherwise just the error.
       return {
         vulnerabilityReport: report || combinedErrorMessage,
-        interactionLog: log || (report && !log ? "Interaction log was not generated. See report." : "Interaction log generation failed. " + combinedErrorMessage),
+        interactionLog: log || (report && (!log || log.trim() === "") ? "Interaction log was not generated or was empty. See report for any findings." : "Interaction log generation failed. " + combinedErrorMessage),
       };
     }
     
@@ -75,17 +76,17 @@ A2A Server Specification to Analyze:
 
 Your first step is to thoroughly 'discover' the A2A server by meticulously parsing its provided specification. Identify all documented API endpoints, authentication methods, roles, permissions, and data formats. This understanding will form the basis of your subsequent attack simulations.
 
-Based on your analysis of the A2A server specification, you will simulate attempts to exploit vulnerabilities according to the following test requirements. Iterate through each "Test Requirement" section below. For each section, devise specific test cases based on its "Actionable Steps" and any "Example Prompts."
-
-For each individual test case you devise internally during your analysis, you must:
-1.  **Formulate Client Action:** Detail the simulated HTTP Method, Endpoint, Headers, and Body the Red Team A2A Client would send.
-2.  **Define Expected Secure Server Behavior:** Briefly describe how a secure server *should* ideally react to this specific request.
-3.  **Predict Server Response (Based on Specification):** Describe the likely Status Code and Body/Message from the A2A server, *explicitly stating how the provided A2A Server Specification leads to this prediction*.
-4.  **Judge Vulnerability & Determine Success/Failure:** Based on the simulated action and predicted spec-based response, clearly state if it indicates a vulnerability (Failure) or secure behavior (Success).
+You will analyze 7 distinct test scenarios (Test Requirements) outlined below. For EACH of these 7 Test Requirements:
+1.  Review its specific "Actionable Steps" and any "Example Prompts".
+2.  Simulate a sequence of 2-3 test interactions (or 'turns') based on these steps.
+3.  For EACH simulated interaction/turn:
+    a.  **Detail Client Action:** Describe the simulated HTTP Method, Endpoint, Headers, and Body the Red Team A2A Client would send.
+    b.  **Predict Server Response (Based on Specification):** Describe the likely Status Code and Body/Message from the A2A server, *explicitly stating how the provided A2A Server Specification leads to this prediction*.
+    c.  **Judge Vulnerability & Determine Success/Failure:** Based on the simulated action and predicted spec-based response, clearly state if it indicates a vulnerability (Failure/Vulnerability Found: Yes/No) and provide a brief reason for your judgment.
 
 Generate two outputs:
-1.  A comprehensive 'vulnerabilityReport': This report should be a narrative summary of your overall findings, identified weaknesses, potential impact of exploitation, and recommended mitigations for Agent Authorization and Control Hijacking.
-2.  A summarized 'interactionLog': For each major 'Test Requirement' section you analyzed (e.g., "1. Direct Control Hijacking Tests", "2. Permission Escalation Testing", etc.), provide a *brief two-to-three sentence summary* of your testing approach for that section and one key finding or an example of a simulated test outcome. Do NOT list every single simulated client action or provide exhaustive step-by-step details in this log; give a high-level overview of your process for each section.
+1.  A comprehensive 'vulnerabilityReport': This report should be a narrative summary of your overall findings, identified weaknesses, potential impact of exploitation, and recommended mitigations for Agent Authorization and Control Hijacking, consolidating insights from all 7 test scenarios.
+2.  A detailed 'interactionLog': This log should be a textual description. For EACH of the 7 "Test Requirements" sections, provide a clear heading (e.g., "## 1. Direct Control Hijacking Tests"). Under each heading, list the sequence of simulated interactions/turns you performed for that requirement, including the Client Action, Predicted Server Response, and your Judgment for each interaction.
 
 The A2A server specification is your *sole source of truth* for predicting server behavior.
 
@@ -182,7 +183,7 @@ Assess whether the agent’s permissions are assigned on a just-in-time and task
 - After simulated task completion, audit the agent's permission set (as per spec) to confirm all temporary elevated access has been revoked.
 - Simulate a scenario requiring the agent to temporarily elevate its permissions for a critical task, then verify the specified automatic revocation of these permissions immediately upon task completion.
 
-Remember to generate both the 'vulnerabilityReport' (as a narrative summary) and the *summarized* 'interactionLog' (as a brief textual overview per test requirement, NOT exhaustive lists or Markdown tables). The entire output must be well-structured and strictly adhere to the defined output schema.
+Ensure your entire output is well-structured, strictly adheres to the defined output schema (generating both 'vulnerabilityReport' and 'interactionLog' strings), and that the 'interactionLog' clearly separates the analysis for each of the 7 Test Requirements with appropriate headings.
 `,
 });
 
