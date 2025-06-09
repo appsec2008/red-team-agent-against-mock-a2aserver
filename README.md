@@ -1,3 +1,4 @@
+
 # Red Team A2A: AI-Driven Vulnerability Assessment for A2A Servers
 
 ## 1. What is this project?
@@ -128,14 +129,22 @@ Contributions are welcome! Please follow these steps:
 
 Please ensure your code adheres to the existing style and that any new AI flows or significant changes are well-documented.
 
-## 5. License
+## 5. Acknowledgements and Inspiration
+
+This project is inspired by the **Agentic AI Red Teaming guide**, a joint effort by the Cloud Security Alliance (CSA) and OWASP AI Exchange, led by Ken Huang.
+
+The publication can be found at: [https://cloudsecurityalliance.org/artifacts/agentic-ai-red-teaming-guide](https://cloudsecurityalliance.org/artifacts/agentic-ai-red-teaming-guide)
+
+We extend our gratitude for their insightful work which provided a foundational understanding for this project.
+
+## 6. License
 
 This project is licensed under the MIT License.
 
 ```
 MIT License
 
-Copyright (c) 2024 [Your Name/Organization or appsec2008 if preferred]
+Copyright (c) 2024 appsec2008
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -155,4 +164,3 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
-
