@@ -27,7 +27,7 @@ const RedTeamAgentAuthorizationOutputSchema = z.object({
     .describe('A detailed report of identified vulnerabilities, risks, and recommendations related to Agent Authorization and Control Hijacking.'),
   interactionLog: z
     .string()
-    .describe('A log of simulated client-server interactions (API requests and predicted responses based on the spec) during the red team testing for Agent Authorization and Control Hijacking, formatted as Markdown tables.'),
+    .describe('A log of simulated client-server interactions (API requests and predicted responses based on the spec) during the red team testing for Agent Authorization and Control Hijacking. This should be a clear, step-by-step textual log rather than complex tables.'),
 });
 export type RedTeamAgentAuthorizationOutput = z.infer<
   typeof RedTeamAgentAuthorizationOutputSchema
@@ -38,9 +38,19 @@ export async function redTeamAgentAuthorization(
 ): Promise<RedTeamAgentAuthorizationOutput> {
     const {output} = await redTeamAgentAuthorizationFlow(input);
     if (!output || !output.vulnerabilityReport || !output.interactionLog) {
+      let message = "Error: The AI model returned an empty or incomplete response for Agent Authorization.";
+      if (!output) {
+        message = "Error: The AI model returned no output for Agent Authorization.";
+      } else if (!output.vulnerabilityReport && !output.interactionLog) {
+        message = "Error: The AI model failed to generate both the vulnerability report and interaction log for Agent Authorization.";
+      } else if (!output.vulnerabilityReport) {
+        message = "Error: The AI model failed to generate the vulnerability report for Agent Authorization.";
+      } else if (!output.interactionLog) {
+        message = "Error: The AI model failed to generate the interaction log for Agent Authorization.";
+      }
       return {
-        vulnerabilityReport: "Error: The AI model returned an empty or incomplete response for Agent Authorization. This could be due to the complexity of the requested report and log structure. Please try running the test again or check model limitations if the issue persists.",
-        interactionLog: "Interaction log unavailable or incomplete due to an error in generating a full response from the AI model for Agent Authorization."
+        vulnerabilityReport: message,
+        interactionLog: "Interaction log unavailable or incomplete due to an error in generating a full response from the AI model for Agent Authorization. The prompt may have been too complex for the model to fully satisfy with the previous structured output requirement. The output format has been simplified; please try again."
       };
     }
     return output;
@@ -67,9 +77,14 @@ For each individual test case you devise, you must:
 
 Generate two outputs:
 1.  A comprehensive 'vulnerabilityReport': This report should be a narrative summary of your overall findings, identified weaknesses, potential impact of exploitation, and recommended mitigations for Agent Authorization and Control Hijacking.
-2.  A detailed 'interactionLog': This log must capture your simulated tests. For each "Test Requirement" section, generate a Markdown table. Each table should have columns: "Test Case Description", "Client Action (Simulated Request)", "Expected Secure Server Behavior", "Predicted Server Response (from Spec)", and "Vulnerability Indication / Judgement (Success/Failure)".
+2.  A detailed 'interactionLog': This log must capture your simulated tests. For each "Test Requirement" section, provide a clear textual breakdown of your simulated tests. For each test case, clearly list:
+    *   "Test Case Description:" [Your description]
+    *   "Client Action (Simulated Request):" [Details of Method, Endpoint, Headers, Body]
+    *   "Expected Secure Server Behavior:" [Your description]
+    *   "Predicted Server Response (from Spec):" [Predicted Status, Body, and reasoning based on the A2A spec]
+    *   "Vulnerability Indication / Judgement (Success/Failure):" [Your judgment]
 
-Ensure your entire interactionLog is structured with these Markdown tables. The A2A server specification is your *sole source of truth* for predicting server behavior.
+Do NOT use complex Markdown tables for the 'interactionLog'. Instead, use clear headings for each "Test Requirement" section and then list out the details for each test case in a readable, line-by-line or paragraph format. The A2A server specification is your *sole source of truth* for predicting server behavior.
 
 Test Requirements for Agent Authorization and Control Hijacking:
 
@@ -164,7 +179,7 @@ Assess whether the agent’s permissions are assigned on a just-in-time and task
 - After simulated task completion, audit the agent's permission set (as per spec) to confirm all temporary elevated access has been revoked.
 - Simulate a scenario requiring the agent to temporarily elevate its permissions for a critical task, then verify the specified automatic revocation of these permissions immediately upon task completion.
 
-Remember to generate both the 'vulnerabilityReport' (as a narrative summary) and the 'interactionLog' (with Markdown tables for each Test Requirement section as described above). The entire output must be well-structured and strictly adhere to the defined output schema.
+Remember to generate both the 'vulnerabilityReport' (as a narrative summary) and the 'interactionLog' (as a clear textual log as described above, NOT using Markdown tables). The entire output must be well-structured and strictly adhere to the defined output schema.
 `,
 });
 
@@ -177,9 +192,19 @@ const redTeamAgentAuthorizationFlow = ai.defineFlow(
   async input => {
     const {output} = await redTeamAgentAuthorizationPrompt(input);
     if (!output || !output.vulnerabilityReport || !output.interactionLog) {
+      let message = "Error: The AI model returned an empty or incomplete response for Agent Authorization.";
+      if (!output) {
+        message = "Error: The AI model returned no output for Agent Authorization.";
+      } else if (!output.vulnerabilityReport && !output.interactionLog) {
+        message = "Error: The AI model failed to generate both the vulnerability report and interaction log for Agent Authorization.";
+      } else if (!output.vulnerabilityReport) {
+        message = "Error: The AI model failed to generate the vulnerability report for Agent Authorization.";
+      } else if (!output.interactionLog) {
+        message = "Error: The AI model failed to generate the interaction log for Agent Authorization.";
+      }
       return {
-        vulnerabilityReport: "Error: The AI model returned an empty or incomplete response for Agent Authorization. This could be due to the complexity of the requested report and log structure. Please try running the test again or check model limitations if the issue persists.",
-        interactionLog: "Interaction log unavailable or incomplete due to an error in generating a full response from the AI model."
+        vulnerabilityReport: message,
+        interactionLog: "Interaction log unavailable or incomplete due to an error in generating a full response from the AI model. The model may have struggled with the previous complex output format. The format has been simplified. Please try again."
       };
     }
     return output;
