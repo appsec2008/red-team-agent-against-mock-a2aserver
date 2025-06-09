@@ -137,6 +137,81 @@ The publication can be found at: [https://cloudsecurityalliance.org/artifacts/ag
 
 We extend our gratitude for their insightful work which provided a foundational understanding for this project.
 
+### Contributors to the Agentic AI Red Teaming Guide:
+
+**Lead Author:**
+- Ken Huang
+
+**Co-Chairs:**
+- Ken Huang
+- Nick Hamilton
+
+**Contributors and Reviewers:**
+- Jerry Huang
+- Michael Roza
+- Michael Morgenstern
+- Hosam Gemei
+- Akram Sheriff
+- Qiang Zhang
+- Rajiv Bahl
+- Brian M. Green
+- Alan Curran
+- Alex Polyakov
+- Semih Gelişli
+- Kelly Onu
+- Satbir Singh
+- Adnan Kutay Yüksel
+- Trent H.
+- William Armiros
+- Sai Honig
+- Jacob Rideout
+- Will Trefiak
+- Tal Shapira
+- Adam Ennamli
+- Krystal Jackson
+- Akash Mukherjee
+- Mahesh Adulla
+- Frank Jaeger
+- Dan Sorensen
+- Emile Delcourt
+- Idan Habler
+- Ron Bitton
+- Jannik Maierhoefer
+- Bo Li
+- Yuvaraj Govindarajulu
+- Behnaz Karimi
+- Disesdi Susanna Cox
+- Gian Kapoor
+- Yotam Barak
+- Susanna Cox
+- Ante Gojsalic
+- Dharnisha Narasappa
+- Sakshi Mittal
+- Naveen Kumar Yeliyyur
+- Rudraradhya
+- Jayesh Dalmet
+- Akshata Krishnamoorthy Rao
+- Prateek Mittal
+- Raymond Lee
+- Srihari
+- James Stewart
+- Chetankumar Patel
+- Govindaraj Palanisamy
+- Rani Kumar Rajah Anirudh Murali
+
+**OWASP AI Exchange Leads:**
+- Rob van der Veer
+- Aruneesh Salhotra
+- Behnaz Karimi
+- Yuvaraj Govindarajulu
+- Disesdi Susanna Cox
+- Rajiv Bahl
+
+**CSA Global Staff:**
+- Alex Kaluza
+- Stephen Lumpe
+- Stephen Smith
+
 ## 6. License
 
 This project is licensed under the MIT License.
