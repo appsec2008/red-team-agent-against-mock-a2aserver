@@ -89,3 +89,4 @@ The AI red team should use the provided 'endpoints' list to understand specific 
 
   return { endpoints, serverContextDescription };
 }
+

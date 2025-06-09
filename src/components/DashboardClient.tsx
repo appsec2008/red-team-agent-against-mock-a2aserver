@@ -37,17 +37,29 @@ export function DashboardClient() {
     setIsDiscovering(true);
     try {
       const output: DiscoverA2AServerOutput = await discoverA2AServer();
-      if (output && output.endpoints && output.serverContextDescription) {
+      // Log the received output for debugging
+      console.log('[DashboardClient] Received output from discoverA2AServer:', JSON.stringify(output, null, 2));
+
+      if (output && output.endpoints && Array.isArray(output.endpoints) && output.serverContextDescription) {
         setA2aServerSpec(JSON.stringify(output, null, 2)); // Store pretty-printed JSON
         toast({
           title: "Mock Server Specification Generated",
           description: "The A2A server specification (as JSON) has been populated in the text area.",
         });
       } else {
-        throw new Error("AI failed to generate a valid structured specification (missing endpoints or serverContextDescription).");
+        let debugMessage = "Generated specification was invalid or incomplete.";
+        if (!output) {
+            debugMessage = "The discovery function returned no output (e.g., null or undefined).";
+        } else if (!output.endpoints || !Array.isArray(output.endpoints)) {
+            debugMessage = "The discovery output is missing the 'endpoints' array or it's not an array.";
+        } else if (!output.serverContextDescription) {
+            debugMessage = "The discovery output is missing the 'serverContextDescription' string.";
+        }
+        console.error("[DashboardClient] Discovery output validation failed. Raw output:", output, "Reason:", debugMessage);
+        throw new Error(debugMessage);
       }
     } catch (error) {
-      console.error("Error discovering server spec:", error);
+      console.error("[DashboardClient] Error in handleDiscoverServer:", error);
       const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during discovery.";
       setA2aServerSpec(`Error: Could not generate A2A server specification.\n${errorMessage}`);
       toast({
