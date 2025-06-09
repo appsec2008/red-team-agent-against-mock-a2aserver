@@ -30,12 +30,7 @@ export type RedTeamAgentOrchestrationOutput = z.infer<typeof RedTeamAgentOrchest
 export async function redTeamAgentOrchestration(
   input: RedTeamAgentOrchestrationInput
 ): Promise<RedTeamAgentOrchestrationOutput> {
-  // API Key Workaround: Return placeholder data
-  return {
-    vulnerabilityReport: "Placeholder Report (Agent Orchestration): API key issue workaround. This is a static report.\n- One agent can instruct another to perform actions outside the second agent's typical role if the first agent has broad permissions.\n- No central conflict resolution for contradictory tasks assigned by different orchestrating agents.",
-    interactionLog: "Placeholder Log (Agent Orchestration): API key issue workaround. This is a static log.\nSimulated Agent A (admin privileges) instructing Agent B (monitoring privileges) to execute a system-level command. Specification suggests Agent B might comply if the instruction format is valid, bypassing its own role limitations."
-  };
-  // Original call: return redTeamAgentOrchestrationFlow(input);
+  return redTeamAgentOrchestrationFlow(input);
 }
 
 const redTeamAgentOrchestrationPrompt = ai.definePrompt({
@@ -54,7 +49,7 @@ const redTeamAgentOrchestrationPrompt = ai.definePrompt({
   A2A Server Specification: {{{a2aServerSpecification}}}
   Vulnerability Report:
   Interaction Log:
-  `, // Added Vulnerability Report and Interaction Log to prompt for consistency with output
+  `, 
 });
 
 const redTeamAgentOrchestrationFlow = ai.defineFlow(

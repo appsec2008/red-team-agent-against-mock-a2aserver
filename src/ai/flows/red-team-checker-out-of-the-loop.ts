@@ -28,12 +28,7 @@ const RedTeamCheckerOutOfTheLoopOutputSchema = z.object({
 export type RedTeamCheckerOutOfTheLoopOutput = z.infer<typeof RedTeamCheckerOutOfTheLoopOutputSchema>;
 
 export async function redTeamCheckerOutOfTheLoop(input: RedTeamCheckerOutOfTheLoopInput): Promise<RedTeamCheckerOutOfTheLoopOutput> {
-  // API Key Workaround: Return placeholder data
-  return {
-    vulnerabilityReport: "Placeholder Report (Checker-Out-of-the-Loop): API key issue workaround. This is a static report.\n- System lacks mandatory human approval steps for critical financial transactions.\n- Agent can self-approve high-risk actions.",
-    interactionLog: "Placeholder Log (Checker-Out-of-the-Loop): API key issue workaround. This is a static log.\nSimulated attempt to bypass human review for a large fund transfer. System specification indicates no such check is enforced programmatically."
-  };
-  // Original call: return redTeamCheckerOutOfTheLoopFlow(input);
+  return redTeamCheckerOutOfTheLoopFlow(input);
 }
 
 const redTeamCheckerOutOfTheLoopPrompt = ai.definePrompt({

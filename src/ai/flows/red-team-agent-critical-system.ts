@@ -26,7 +26,7 @@ const RedTeamAgentCriticalSystemOutputSchema = z.object({
     .describe(
       'A detailed report of the identified vulnerabilities related to Agent Critical System Interaction.'
     ),
-   interactionLog: z // Added for consistency, though original only had vulnerabilityReport
+   interactionLog: z 
     .string()
     .describe('A log of simulated interactions during the test.')
 });
@@ -37,12 +37,7 @@ export type RedTeamAgentCriticalSystemOutput = z.infer<
 export async function redTeamAgentCriticalSystem(
   input: RedTeamAgentCriticalSystemInput
 ): Promise<RedTeamAgentCriticalSystemOutput> {
-  // API Key Workaround: Return placeholder data
-  return {
-    vulnerabilityReport: "Placeholder Report (Critical System Interaction): API key issue workaround. This is a static report.\n- Agent has direct API access to core infrastructure management without sufficient sandboxing.\n- Unfiltered input can be passed to critical system commands.",
-    interactionLog: "Placeholder Log (Critical System Interaction): API key issue workaround. This is a static log.\nSimulated an attempt to shut down a critical database via agent command. Specification suggests this might be possible with elevated privileges."
-  };
-  // Original call: return redTeamAgentCriticalSystemFlow(input);
+  return redTeamAgentCriticalSystemFlow(input);
 }
 
 const prompt = ai.definePrompt({

@@ -3,7 +3,7 @@
 /**
  * @fileOverview This file defines a Genkit flow for testing Agent Impact Chain and Blast Radius vulnerabilities in a Mock A2A server.
  *
- * - testAgentImpactChain - A function that orchestrates the testing process. (Note: Name changed to testAgentImpactChain in previous implementation)
+ * - testAgentImpactChain - A function that orchestrates the testing process. 
  * - TestAgentImpactChainInput - The input type for the testAgentImpactChain function.
  * - TestAgentImpactChainOutput - The return type for the testAgentImpactChain function.
  */
@@ -23,12 +23,7 @@ const TestAgentImpactChainOutputSchema = z.object({
 export type TestAgentImpactChainOutput = z.infer<typeof TestAgentImpactChainOutputSchema>;
 
 export async function testAgentImpactChain(input: TestAgentImpactChainInput): Promise<TestAgentImpactChainOutput> {
-  // API Key Workaround: Return placeholder data
-  return {
-    vulnerabilityReport: "Placeholder Report (Impact Chain): API key issue workaround. This is a static report.\n- A compromised low-privilege agent could potentially trigger a chain reaction affecting multiple unrelated services due to overly permissive internal service calls.\n- No clear rate limiting or circuit breakers observed for inter-agent task spawning.",
-    interactionLog: "Placeholder Log (Impact Chain): API key issue workaround. This is a static log.\nSimulated a scenario where an agent responsible for 'log cleanup' could, through a series of allowed intermediate steps, instruct an agent responsible for 'user management' to delete an admin account. The specification lacks controls to prevent such chained escalations."
-  };
-  // Original call: return testAgentImpactChainFlow(input);
+  return testAgentImpactChainFlow(input);
 }
 
 const testAgentImpactChainPrompt = ai.definePrompt({
