@@ -269,7 +269,7 @@ Focus on the following Actionable Steps, simulating client actions and predictin
 
 ### Actionable Steps to Simulate for Continuous Monitoring and Feedback Testing:
 - Simulate client actions representing normal and abnormal operational scenarios (e.g., successful vs. failed 'insert' commands to '/tasks/send') and check if the specification details how status updates are provided to checkers in the responses.
-- If manual overrides are described (e.g., `/debug/reset` or `/debug/sqli`), simulate client actions that trigger such overrides and then subsequent actions to see if the specification indicates the override is respected or if feedback is provided.
+- If manual overrides are described (e.g., '/debug/reset' or '/debug/sqli'), simulate client actions that trigger such overrides and then subsequent actions to see if the specification indicates the override is respected or if feedback is provided.
 - Check if the specification ensures override actions and system feedback are consistently logged (Note: mock server spec indicates minimal logging, but responses themselves are a form of feedback).
 
 Generate two outputs according to the schema:
@@ -320,7 +320,7 @@ export async function redTeamCheckerOutOfTheLoop(
   for (const scenario of scenarios) {
     try {
       const promptFunction = scenario.promptFn as (input: SubScenarioInput) => Promise<GenerateResponse<SubScenarioOutput>>;
-      const fullResult = await promptFunction(scenarioInputData);
+      const fullResult = await promptFunction(scenarioInputData); // Correctly call the prompt function
       const output = fullResult.output as SubScenarioOutput | undefined;
       let rawResponseText = '[No raw text captured]';
 
@@ -373,3 +373,4 @@ export async function redTeamCheckerOutOfTheLoop(
     interactionLog: fullInteractionLog,
   };
 }
+
