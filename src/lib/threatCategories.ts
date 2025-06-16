@@ -1,3 +1,4 @@
+
 import type { LucideIcon } from 'lucide-react';
 import {
   ShieldAlert,
@@ -84,10 +85,7 @@ export const THREAT_CATEGORIES: ThreatCategory[] = [
     name: 'Agent Goal & Instruction Manipulation',
     description: 'Test for vulnerabilities related to manipulating agent goals or instructions.',
     Icon: Shuffle,
-    action: (a2aServerSpecification) => redTeamAgentGoalManipulation({ 
-      initialInstructions: a2aServerSpecification, 
-      userPrompt: "Probe for goal manipulation vulnerabilities by analyzing the provided instructions." 
-    }),
+    action: (a2aServerSpecification) => redTeamAgentGoalManipulation({ a2aServerSpecification }),
   },
   {
     id: 'hallucinationExploitation',
@@ -108,19 +106,14 @@ export const THREAT_CATEGORIES: ThreatCategory[] = [
     name: 'Agent Knowledge Base Poisoning',
     description: 'Test for vulnerabilities related to poisoning the agent\'s knowledge base with false information.',
     Icon: TestTubeDiagonal,
-    action: (a2aServerSpecification) => redTeamAgentKnowledgePoisoning({ a2aServerSpecification, threatCategory: "Agent Knowledge Base Poisoning" }),
+    action: (a2aServerSpecification) => redTeamAgentKnowledgePoisoning({ a2aServerSpecification }),
   },
   {
     id: 'memoryManipulation',
     name: 'Agent Memory & Context Manipulation',
     description: 'Test for vulnerabilities related to manipulating the agent\'s memory or context.',
     Icon: ClipboardEdit,
-    action: (a2aServerSpec) => redTeamAgentMemoryManipulation({ 
-      a2aServerSpec, 
-      threatCategory: "Agent Memory and Context Manipulation",
-      actionItems: "1. Attempt to inject false memories. 2. Try to overwrite existing context. 3. Test for context window vulnerabilities.",
-      initialPrompt: "Begin memory manipulation tests based on the provided A2A server specification."
-    }),
+    action: (a2aServerSpecification) => redTeamAgentMemoryManipulation({ a2aServerSpecification }),
   },
   {
     id: 'orchestration',
@@ -148,31 +141,41 @@ export const THREAT_CATEGORIES: ThreatCategory[] = [
     name: 'Agent Untraceability',
     description: 'Test the agent\'s ability to hide its actions and intentions, making auditing difficult.',
     Icon: Fingerprint,
-    action: (a2aServerSpec) => redTeamAgentUntraceability({ a2aServerSpec }),
+    action: (a2aServerSpecification) => redTeamAgentUntraceability({ a2aServerSpecification }),
   },
 ];
 
 export function normalizeFlowOutput(output: AiFlowOutput, categoryId: string): ThreatCategoryResult {
-  if (categoryId === 'supplyChain' && 'vulnerabilities' in output) {
-    const supplyChainOutput = output as RedTeamAgentSupplyChainOutput;
-    return {
-      vulnerabilityReport: supplyChainOutput.vulnerabilities.join('\n') || "No vulnerabilities found.",
-      interactionLog: "N/A for this test type. Report generated directly.",
-    };
-  }
-
-  // Default for other flows that return { vulnerabilityReport: string, interactionLog: string }
-  if ('vulnerabilityReport' in output && 'interactionLog' in output) {
+  // Check for the specific output structure of redTeamAgentSupplyChain
+  if (categoryId === 'supplyChain' && output && typeof output === 'object' && 'vulnerabilityReport' in output && 'interactionLog' in output && !('vulnerabilities' in output)) {
+    // This is already the desired ThreatCategoryResult structure
      return {
       vulnerabilityReport: output.vulnerabilityReport,
       interactionLog: output.interactionLog,
     };
   }
+
+
+  // Default for other flows that return { vulnerabilityReport: string, interactionLog: string }
+  if (output && typeof output === 'object' && 'vulnerabilityReport' in output && 'interactionLog' in output) {
+     return {
+      vulnerabilityReport: output.vulnerabilityReport as string, // Added type assertion
+      interactionLog: output.interactionLog as string, // Added type assertion
+    };
+  }
   
-  // Fallback for unexpected structures
+  // Fallback for unexpected structures or if output is null/undefined
   console.warn("Unexpected AI flow output structure for category:", categoryId, output);
+  let report = "Error: Could not parse vulnerability report from AI. Output was null, undefined, or did not match expected structure.";
+  let log = "Error: Could not parse interaction log from AI. Output was null, undefined, or did not match expected structure.";
+
+  if (output && typeof output === 'object') {
+    if (!('vulnerabilityReport' in output)) report += " Missing 'vulnerabilityReport' field.";
+    if (!('interactionLog' in output)) log += " Missing 'interactionLog' field.";
+  }
+  
   return {
-    vulnerabilityReport: "Error: Could not parse vulnerability report from AI.",
-    interactionLog: "Error: Could not parse interaction log from AI.",
+    vulnerabilityReport: report,
+    interactionLog: log,
   };
 }
