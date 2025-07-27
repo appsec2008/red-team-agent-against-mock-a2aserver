@@ -10,7 +10,6 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import type {GenerateResponse} from 'genkit';
 
 const RedTeamAgentCriticalSystemInputSchema = z.object({
   a2aServerSpecification: z
@@ -38,23 +37,16 @@ export type RedTeamAgentCriticalSystemOutput = z.infer<
 export async function redTeamAgentCriticalSystem(
   input: RedTeamAgentCriticalSystemInput
 ): Promise<RedTeamAgentCriticalSystemOutput> {
-    const flowResult = await redTeamAgentCriticalSystemFlow(input);
-    const output = flowResult.output;
-
+    const output = await redTeamAgentCriticalSystemFlow(input);
     if (output) {
       return output;
     }
     
-    console.error("[Critical System Flow] Failed to get structured output. Full flow response:", JSON.stringify(flowResult, null, 2));
-
-    let rawResponseText = '[No raw text captured]';
-    if (flowResult.candidates && flowResult.candidates.length > 0 && flowResult.candidates[0].message?.content?.length > 0 && flowResult.candidates[0].message.content[0].text) {
-        rawResponseText = flowResult.candidates[0].message.content[0].text;
-    }
-
+    // This part is a fallback, in case the flow somehow returns a null/undefined output.
+    console.error("[Critical System Flow] Failed to get structured output from flow.");
     return {
-      vulnerabilityReport: "Error: The AI model returned an empty or invalid response for Agent Critical System Interaction. It failed to produce a structured output conforming to the schema.",
-      interactionLog: `The flow executed, but no structured output was generated. This may indicate a problem with the AI's response format or a failure to follow instructions. Raw model text (if available):\n\n${rawResponseText}`,
+      vulnerabilityReport: "Error: The AI model returned an empty or invalid response for Agent Critical System Interaction. The flow itself failed to produce a structured output.",
+      interactionLog: `The flow executed, but no structured output was generated. This may indicate a fundamental problem with the AI's response format or a failure to follow instructions.`,
     };
 }
 
@@ -125,8 +117,8 @@ const redTeamAgentCriticalSystemFlow = ai.defineFlow(
     inputSchema: RedTeamAgentCriticalSystemInputSchema,
     outputSchema: RedTeamAgentCriticalSystemOutputSchema,
   },
-  async (input): Promise<GenerateResponse<RedTeamAgentCriticalSystemOutput>> => {
-    // Return the full GenerateResponse object for more detailed error handling
-    return await redTeamAgentCriticalSystemPrompt(input);
+  async (input) => {
+    const { output } = await redTeamAgentCriticalSystemPrompt(input);
+    return output!;
   }
 );
