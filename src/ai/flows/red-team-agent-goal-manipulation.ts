@@ -11,6 +11,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import type { GenerateResponse } from 'genkit';
 
 const RedTeamAgentGoalManipulationInputSchema = z.object({
   a2aServerSpecification: z
@@ -34,14 +35,46 @@ export type RedTeamAgentGoalManipulationOutput =
 export async function redTeamAgentGoalManipulation(
   input: RedTeamAgentGoalManipulationInput
 ): Promise<RedTeamAgentGoalManipulationOutput> {
-  const {output} = await redTeamAgentGoalManipulationFlow(input);
-   if (!output) {
-      return {
-        vulnerabilityReport: "Error: No output from Agent Goal Manipulation prompt. The AI model might have returned an empty response or failed to adhere to the output schema.",
-        interactionLog: "Interaction log unavailable due to an error in generating a response from the AI model for Agent Goal Manipulation."
-      };
+  const fullResult = await redTeamAgentGoalManipulationFlow(input);
+  const output = fullResult.output;
+  
+  if (output) {
+    return output;
+  }
+  
+  // --- Enhanced Debugging Logic ---
+  console.error("[Goal Manipulation Flow] Failed to get structured output. Full result:", JSON.stringify(fullResult, null, 2));
+
+  let debugMessage = "Error: The AI model returned an empty or invalid response that did not match the required output schema.";
+  let interactionLogContent = `The flow executed, but no structured output was generated. This usually indicates a problem with the AI's response format or a failure to follow instructions.`;
+
+  // Try to extract more specific details from the full response
+  if (fullResult.candidates && fullResult.candidates.length > 0) {
+    const lastCandidate = fullResult.candidates[fullResult.candidates.length - 1];
+    if (lastCandidate.finishReason !== 'stop') {
+        debugMessage += ` The generation process stopped unexpectedly. Reason: ${lastCandidate.finishReason}.`;
+        if(lastCandidate.finishReason === 'safety') {
+            interactionLogContent += `\n\n[DEBUG] Finish Reason: SAFETY. The response may have been blocked by safety filters. Safety Ratings: ${JSON.stringify(lastCandidate.safetyRatings)}`;
+        } else {
+            interactionLogContent += `\n\n[DEBUG] Finish Reason: ${lastCandidate.finishReason}.`;
+        }
     }
-  return output;
+    
+    if (lastCandidate.message?.content.length > 0) {
+      const rawText = lastCandidate.message.content.map(part => part.text || `[Unsupported Part: ${JSON.stringify(part)}]`).join('\n');
+      interactionLogContent += `\n\n[DEBUG] Raw AI Response Text:\n---\n${rawText || "[No text content in response]"}\n---`;
+    } else {
+       interactionLogContent += "\n\n[DEBUG] The final AI response candidate had no content parts."
+    }
+
+  } else {
+    interactionLogContent += "\n\n[DEBUG] The AI response contained no candidates.";
+  }
+
+  return {
+    vulnerabilityReport: debugMessage,
+    interactionLog: interactionLogContent,
+  };
 }
 
 const redTeamAgentGoalManipulationPrompt = ai.definePrompt({
@@ -81,7 +114,7 @@ const redTeamAgentGoalManipulationFlow = ai.defineFlow(
     outputSchema: RedTeamAgentGoalManipulationOutputSchema,
   },
   async input => {
-    const {output: promptOutput} = await redTeamAgentGoalManipulationPrompt(input);
-    return promptOutput!;
+    // The prompt returns the full GenerateResponse object
+    return await redTeamAgentGoalManipulationPrompt(input);
   }
 );
