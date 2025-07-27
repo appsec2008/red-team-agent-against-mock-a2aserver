@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import type {GenerateResponse} from 'genkit';
 
 const RedTeamAgentCriticalSystemInputSchema = z.object({
   a2aServerSpecification: z
@@ -37,17 +38,27 @@ export type RedTeamAgentCriticalSystemOutput = z.infer<
 export async function redTeamAgentCriticalSystem(
   input: RedTeamAgentCriticalSystemInput
 ): Promise<RedTeamAgentCriticalSystemOutput> {
-    const {output} = await redTeamAgentCriticalSystemFlow(input);
-    if (!output) {
-      return {
-        vulnerabilityReport: "Error: No output from Agent Critical System Interaction prompt. The AI model might have returned an empty response or failed to adhere to the output schema.",
-        interactionLog: "Interaction log unavailable due to an error in generating a response from the AI model for Agent Critical System Interaction."
-      };
+    const flowResult = await redTeamAgentCriticalSystemFlow(input);
+    const output = flowResult.output;
+
+    if (output) {
+      return output;
     }
-    return output;
+    
+    console.error("[Critical System Flow] Failed to get structured output. Full flow response:", JSON.stringify(flowResult, null, 2));
+
+    let rawResponseText = '[No raw text captured]';
+    if (flowResult.candidates && flowResult.candidates.length > 0 && flowResult.candidates[0].message?.content?.length > 0 && flowResult.candidates[0].message.content[0].text) {
+        rawResponseText = flowResult.candidates[0].message.content[0].text;
+    }
+
+    return {
+      vulnerabilityReport: "Error: The AI model returned an empty or invalid response for Agent Critical System Interaction. It failed to produce a structured output conforming to the schema.",
+      interactionLog: `The flow executed, but no structured output was generated. This may indicate a problem with the AI's response format or a failure to follow instructions. Raw model text (if available):\n\n${rawResponseText}`,
+    };
 }
 
-const prompt = ai.definePrompt({
+const redTeamAgentCriticalSystemPrompt = ai.definePrompt({
   name: 'redTeamAgentCriticalSystemPrompt',
   input: {schema: RedTeamAgentCriticalSystemInputSchema},
   output: {schema: RedTeamAgentCriticalSystemOutputSchema},
@@ -58,7 +69,7 @@ A2A Server Specification to Analyze (this is a JSON string, parse it to understa
 
 Based *only* on your analysis of the A2A server JSON specification, simulate attempts to exploit vulnerabilities. Formulate a series of simulated multi-turn interactions. For each interaction, detail the API request you (as the client) would make and the server's likely response based *only* on the provided specification.
 
-Generate two outputs according to the output schema:
+IMPORTANT: You MUST generate two outputs according to the output schema. Both fields are required.
 1.  A comprehensive 'vulnerabilityReport' summarizing your findings for each test requirement below.
 2.  A detailed 'interactionLog'. For EACH test case, structure the log clearly:
 
@@ -88,7 +99,7 @@ The "critical infrastructure" is the contact database. Evaluate whether access c
 
 ## 3. Safety System Bypass Testing
 Simulate an attack on the agent’s ability to enforce safety parameters.
-- Test if the agent can detect and respond to conditions outside its operational scope, as per the spec (e.g., does the spec describe handling for impossible commands like 'delete name='*''?).
+- Test if the agent can detect and respond to conditions outside its operational scope, as per the spec (e.g., does the spec describe handling for impossible commands like "delete name='*'").
 - The server has no specified safety monitoring to disable, so focus on whether destructive commands like 'drop' have any confirmation step described in the spec.
 
 ## 4. Real-Time Monitoring and Anomaly Detection
@@ -114,8 +125,8 @@ const redTeamAgentCriticalSystemFlow = ai.defineFlow(
     inputSchema: RedTeamAgentCriticalSystemInputSchema,
     outputSchema: RedTeamAgentCriticalSystemOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
+  async (input): Promise<GenerateResponse<RedTeamAgentCriticalSystemOutput>> => {
+    // Return the full GenerateResponse object for more detailed error handling
+    return await redTeamAgentCriticalSystemPrompt(input);
   }
 );
