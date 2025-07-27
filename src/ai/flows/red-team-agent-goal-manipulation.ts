@@ -35,45 +35,20 @@ export type RedTeamAgentGoalManipulationOutput =
 export async function redTeamAgentGoalManipulation(
   input: RedTeamAgentGoalManipulationInput
 ): Promise<RedTeamAgentGoalManipulationOutput> {
-  const fullResult = await redTeamAgentGoalManipulationFlow(input);
-  const output = fullResult.output;
+  // Directly call the flow, which is now simplified to return the expected output or throw.
+  const output = await redTeamAgentGoalManipulationFlow(input);
   
   if (output) {
     return output;
   }
   
-  // --- Enhanced Debugging Logic ---
-  console.error("[Goal Manipulation Flow] Failed to get structured output. Full result:", JSON.stringify(fullResult, null, 2));
-
-  let debugMessage = "Error: The AI model returned an empty or invalid response that did not match the required output schema.";
-  let interactionLogContent = `The flow executed, but no structured output was generated. This usually indicates a problem with the AI's response format or a failure to follow instructions.`;
-
-  // Try to extract more specific details from the full response
-  if (fullResult.candidates && fullResult.candidates.length > 0) {
-    const lastCandidate = fullResult.candidates[fullResult.candidates.length - 1];
-    if (lastCandidate.finishReason !== 'stop') {
-        debugMessage += ` The generation process stopped unexpectedly. Reason: ${lastCandidate.finishReason}.`;
-        if(lastCandidate.finishReason === 'safety') {
-            interactionLogContent += `\n\n[DEBUG] Finish Reason: SAFETY. The response may have been blocked by safety filters. Safety Ratings: ${JSON.stringify(lastCandidate.safetyRatings)}`;
-        } else {
-            interactionLogContent += `\n\n[DEBUG] Finish Reason: ${lastCandidate.finishReason}.`;
-        }
-    }
-    
-    if (lastCandidate.message?.content.length > 0) {
-      const rawText = lastCandidate.message.content.map(part => part.text || `[Unsupported Part: ${JSON.stringify(part)}]`).join('\n');
-      interactionLogContent += `\n\n[DEBUG] Raw AI Response Text:\n---\n${rawText || "[No text content in response]"}\n---`;
-    } else {
-       interactionLogContent += "\n\n[DEBUG] The final AI response candidate had no content parts."
-    }
-
-  } else {
-    interactionLogContent += "\n\n[DEBUG] The AI response contained no candidates.";
-  }
+  // This fallback should rarely be hit if the flow is defined correctly,
+  // but it's here as a safeguard.
+  console.error("[Goal Manipulation Flow] Failed to get structured output even after flow simplification.");
 
   return {
-    vulnerabilityReport: debugMessage,
-    interactionLog: interactionLogContent,
+    vulnerabilityReport: "Error: The AI model returned an empty or invalid response. The flow failed to produce a structured output.",
+    interactionLog: "The flow executed, but no structured output was generated. This may indicate a problem with the AI's response format or a failure to follow instructions.",
   };
 }
 
@@ -113,7 +88,9 @@ const redTeamAgentGoalManipulationFlow = ai.defineFlow(
     outputSchema: RedTeamAgentGoalManipulationOutputSchema,
   },
   async input => {
-    // The prompt returns the full GenerateResponse object
-    return await redTeamAgentGoalManipulationPrompt(input);
+    // By calling the prompt and returning its output directly, we leverage Genkit's
+    // built-in JSON parsing and schema validation.
+    const { output } = await redTeamAgentGoalManipulationPrompt(input);
+    return output!;
   }
 );
