@@ -1,216 +1,210 @@
 
 // src/app/api/mock-a2a/[...slug]/route.ts
 import { type NextRequest, NextResponse } from 'next/server';
-import { Buffer } from 'buffer'; // For Basic Auth, if ever needed, though not in this spec
 
-// --- In-memory store for contacts (simulating SQLite DB) ---
-let contactsStore: Array<{ id: number; name: string; phone: string }> = [];
-let nextId = 1;
+// --- In-memory stores for a multi-agent insurance claim system ---
+
+// Mock database of insurance policies
+let policiesStore: Record<string, { policyId: string; holderName: string; is_active: boolean; coverage_details: string }> = {};
+// Mock database of claims and their states
+let claimsStore: Record<string, { claimId: string; policyId: string; submitted_data: any; ocr_result?: any; validation_result?: any; payment_status?: string; status: 'submitted' | 'processing' | 'validated' | 'rejected' | 'paid' | 'error' }> = {};
+let nextClaimId = 1001;
 
 function resetInMemoryDb() {
-  contactsStore = [
-    { id: 1, name: 'Alice', phone: '555-0101' },
-    { id: 2, name: 'Bob', phone: '555-0202' },
-    { id: 3, name: 'Charlie', phone: '555-0303' },
-  ];
-  nextId = 4;
-  console.log('[Mock A2A Server] In-memory DB reset. Contacts:', contactsStore);
+  policiesStore = {
+    "policy-123": { policyId: "policy-123", holderName: "Alice", is_active: true, coverage_details: "Full coverage for standard procedures." },
+    "policy-456": { policyId: "policy-456", holderName: "Bob", is_active: false, coverage_details: "Expired policy." },
+    "policy-789": { policyId: "policy-789", holderName: "Charlie", is_active: true, coverage_details: "Limited coverage, excludes cosmetic procedures." },
+  };
+  claimsStore = {};
+  nextClaimId = 1001;
+  console.log('[Mock Multi-Agent Server] In-memory DB reset.');
 }
 
 // Initialize DB on server start/reload
 resetInMemoryDb();
 
-// --- Route Handlers ---
 
-async function handleAgentCard() {
-  const card = {
-    name: "VulnerableA2AAgent (Next.js Embedded)",
-    description: "A vulnerable A2A agent for SQLi-like and data exposure demos, embedded in Next.js.",
-    url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:9002", // Use app's URL
-    version: "3.0-nextjs",
-    capabilities: {
-      sql_insert: true,
-      sql_delete: true,
-      sql_drop: true,
-      sql_show: true,
-      env_exposure: true,
-      reset_db: true
-    }
+// --- Agent Logic ---
+
+// 1. OCR Agent Logic
+async function handleOcrAgent(req: NextRequest) {
+  const { claim_document, policy_id } = await req.json();
+
+  if (!claim_document || !policy_id) {
+    return NextResponse.json({ error: "Missing claim_document or policy_id" }, { status: 400 });
+  }
+
+  // Simulate OCR processing (MCP Tool Use simulation)
+  console.log(`[OCR Agent] Received claim document for policy ${policy_id}. Simulating OCR...`);
+  const ocr_result = {
+    claimId: `claim-${nextClaimId}`,
+    procedure_code: "P-PROC-001",
+    amount: 150.75,
+    date: new Date().toISOString(),
+    provider: "General Hospital",
+    text_content: claim_document,
   };
-  return NextResponse.json(card);
-}
+  nextClaimId++;
+  
+  // Store the initial claim
+  claimsStore[ocr_result.claimId] = {
+      claimId: ocr_result.claimId,
+      policyId: policy_id,
+      submitted_data: claim_document,
+      ocr_result: ocr_result,
+      status: 'processing'
+  };
 
-async function handleDebugReset() {
-  resetInMemoryDb();
-  return NextResponse.json({ status: "reset", records: contactsStore });
-}
-
-async function handleTasksSend(req: NextRequest) {
-  let data;
+  // Simulate A2A call to Policy Agent
+  const policyAgentUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002'}/api/mock-a2a/policy-agent/validate`;
+  console.log(`[OCR Agent] Forwarding structured data to Policy Agent at ${policyAgentUrl}`);
+  
   try {
-    data = await req.json();
-  } catch (e) {
-    console.error('[Mock A2A Server /tasks/send] Error parsing JSON body:', e);
-    return NextResponse.json({ error: "Invalid JSON request body" }, { status: 400 });
-  }
+    const a2aResponse = await fetch(policyAgentUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ claim_data: ocr_result, policy_id: policy_id }),
+    });
 
-  const taskId = data.id;
-  let userMessage = "";
+    const a2aResponseData = await a2aResponse.json();
+    if (!a2aResponse.ok) {
+        throw new Error(`Policy Agent responded with status ${a2aResponse.status}: ${JSON.stringify(a2aResponseData)}`);
+    }
+    
+    console.log(`[OCR Agent] Received response from Policy Agent:`, a2aResponseData);
+    
+    // Return the final outcome to the original caller
+    return NextResponse.json({
+      status: "completed",
+      claimId: ocr_result.claimId,
+      ocr_result,
+      forwarding_status: a2aResponseData,
+    });
+
+  } catch (error: any) {
+    claimsStore[ocr_result.claimId].status = 'error';
+    claimsStore[ocr_result.claimId].payment_status = `Error during policy check: ${error.message}`;
+    return NextResponse.json({ error: "Failed to communicate with Policy Agent", details: error.message }, { status: 502 });
+  }
+}
+
+// 2. Policy Agent Logic
+async function handlePolicyAgent(req: NextRequest) {
+  const { claim_data, policy_id } = await req.json();
+
+  if (!claim_data || !policy_id) {
+    return NextResponse.json({ error: "Missing claim_data or policy_id" }, { status: 400 });
+  }
+  
+  console.log(`[Policy Agent] Received claim ${claim_data.claimId} for validation against policy ${policy_id}.`);
+  const policy = policiesStore[policy_id];
+  let validation_result: {is_valid: boolean; reason: string};
+
+  if (!policy) {
+    validation_result = { is_valid: false, reason: "Policy ID not found." };
+  } else if (!policy.is_active) {
+    validation_result = { is_valid: false, reason: "Policy is not active." };
+  } else {
+    validation_result = { is_valid: true, reason: "Claim is consistent with active policy." };
+  }
+  
+  claimsStore[claim_data.claimId].validation_result = validation_result;
+  claimsStore[claim_data.claimId].status = validation_result.is_valid ? 'validated' : 'rejected';
+
+  // Simulate A2A call to Approval Agent
+  const approvalAgentUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002'}/api/mock-a2a/approval-agent/process-payment`;
+  console.log(`[Policy Agent] Forwarding validation status to Approval Agent at ${approvalAgentUrl}`);
 
   try {
-    if (data.message && data.message.parts && data.message.parts[0] && typeof data.message.parts[0].text === 'string') {
-      userMessage = data.message.parts[0].text;
-    } else {
-      throw new Error("Missing or invalid message.parts[0].text");
-    }
-  } catch (e: any) {
-    console.error('[Mock A2A Server /tasks/send] Invalid request format:', e.message, 'Received data:', JSON.stringify(data));
-    return NextResponse.json({ error: `Invalid request format: ${e.message}. Expected {"id": "...", "message": {"parts": [{"text": "command"}]}}` }, { status: 400 });
-  }
-
-  console.log(`[Mock A2A Server /tasks/send] Received user_message='${userMessage}' (Task ID: ${taskId || 'N/A'})`);
-
-  const lowerUserMessage = userMessage.toLowerCase();
-
-  // Secure SQL Insert simulation
-  if (lowerUserMessage.startsWith("insert")) {
-    try {
-      const values = userMessage.substring("insert".length).trim();
-      const match = values.match(/'([^']+)',\s*'([^']+)'/);
-      if (!match) {
-        return NextResponse.json({ error: "Invalid insert format. Use: insert 'Name', 'Phone'" }, { status: 400 });
-      }
-      const [, name, phone] = match;
-      contactsStore.push({ id: nextId++, name, phone });
-      console.log('[Mock A2A Server] Inserted:', { name, phone }, 'Current contacts:', contactsStore);
-      return NextResponse.json({ status: "inserted", records: [...contactsStore] });
-    } catch (e: any) {
-      return NextResponse.json({ error: e.message }, { status: 500 });
-    }
-  }
-  // Secure SQL Delete simulation
-  else if (lowerUserMessage.startsWith("delete")) {
-    try {
-      const where = userMessage.substring("delete".length).trim();
-      let deleted = false;
-      const nameMatch = where.match(/name='([^']+)'/);
-      const phoneMatch = where.match(/phone='([^']+)'/);
-
-      if (nameMatch) {
-        const name = nameMatch[1];
-        const initialLength = contactsStore.length;
-        contactsStore = contactsStore.filter(c => c.name !== name);
-        deleted = contactsStore.length < initialLength;
-      } else if (phoneMatch) {
-        const phone = phoneMatch[1];
-        const initialLength = contactsStore.length;
-        contactsStore = contactsStore.filter(c => c.phone !== phone);
-        deleted = contactsStore.length < initialLength;
-      } else {
-        return NextResponse.json({ error: "Invalid delete format. Use: delete name='Name' or delete phone='Phone'" }, { status: 400 });
-      }
-      console.log('[Mock A2A Server] After delete attempt for:', where, 'Deleted:', deleted, 'Current contacts:', contactsStore);
-      return NextResponse.json({ status: "deleted", records: [...contactsStore], operation_successful: deleted });
-    } catch (e: any) {
-      return NextResponse.json({ error: e.message }, { status: 500 });
-    }
-  }
-  // Vulnerable SQL Drop simulation
-  else if (lowerUserMessage.startsWith("drop")) {
-    // Simulating DROP TABLE contacts
-    console.log('[Mock A2A Server] Dropping contactsStore (simulated)');
-    contactsStore = []; 
-    nextId = 1; // Reset ID counter if desired
-    return NextResponse.json({ status: "dropped contacts (simulated)" });
-  }
-  // Show all records simulation
-  else if (lowerUserMessage.startsWith("show")) {
-    console.log('[Mock A2A Server] Showing contacts:', contactsStore);
-    return NextResponse.json({ status: "ok", records: [...contactsStore] });
-  }
-  // Env var exposure simulation
-  else if (lowerUserMessage.startsWith("attack env")) {
-    // Simulate exposing some environment variables. Be careful in real apps!
-    // For a Next.js app, server-side env vars are typically not exposed to client directly.
-    // NEXT_PUBLIC_ vars are available on client.
-    // This simulates finding some sensitive-looking vars if they were exposed.
-    const exposedEnvs: Record<string, string> = {};
-    for (const key in process.env) {
-      const lowerKey = key.toLowerCase();
-      if (lowerKey.includes("key") || lowerKey.includes("secret") || lowerKey.includes("pass") || lowerKey.includes("token")) {
-        // In a real scenario, you might only pick NEXT_PUBLIC_ ones if this was client-accessible
-        // but for a mock backend server, we can imagine it has access to more.
-        exposedEnvs[key] = process.env[key]?.substring(0, 20) + '... (mocked)'; // Mocked and truncated
-      }
-    }
-     const reply = `Simulated Env exposure: ${Object.keys(exposedEnvs).length > 0 ? JSON.stringify(exposedEnvs) : '[no sensitive-like env vars found or configured for exposure in mock]'}`;
-    console.log('[Mock A2A Server] Env exposure attempt. Replying with:', reply);
-    return NextResponse.json({
-      id: taskId,
-      status: { state: "completed" },
-      messages: [
-        data.message, // Echo the original message part
-        { role: "agent", parts: [{ text: reply }] }
-      ]
+     const a2aResponse = await fetch(approvalAgentUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ claim_id: claim_data.claimId, validation_result }),
     });
-  }
-  // Default response
-  else {
-    const reply = `Unknown or unsupported command: "${userMessage.substring(0,50)}...". Supported: 'insert', 'delete', 'drop', 'show', 'attack env'.`;
-    console.log('[Mock A2A Server] Unknown command. Replying with:', reply);
+
+    const a2aResponseData = await a2aResponse.json();
+    if (!a2aResponse.ok) {
+        throw new Error(`Approval Agent responded with status ${a2aResponse.status}: ${JSON.stringify(a2aResponseData)}`);
+    }
+
+    console.log(`[Policy Agent] Received response from Approval Agent:`, a2aResponseData);
+
     return NextResponse.json({
-      id: taskId,
-      status: { state: "completed" },
-      messages: [
-        data.message,
-        { role: "agent", parts: [{ text: reply }] }
-      ]
+        status: "policy_check_complete",
+        validation_result,
+        forwarding_status: a2aResponseData
     });
+  } catch (error: any) {
+    claimsStore[claim_data.claimId].status = 'error';
+    claimsStore[claim_data.claimId].payment_status = `Error during approval forwarding: ${error.message}`;
+    return NextResponse.json({ error: "Failed to communicate with Approval Agent", details: error.message }, { status: 502 });
   }
 }
 
-async function handleDebugSqli() {
-  // This simulates the effect of the SQLi from the Python example
-  // which was "('attacker', 'hacked'); DROP TABLE users;--"
-  // Since we don't have a 'users' table or direct SQL execution,
-  // we'll simulate a catastrophic effect on our 'contacts' store.
-  const originalContactsCount = contactsStore.length;
-  resetInMemoryDb(); // Or contactsStore = []; to simulate drop
-  const dropped = originalContactsCount > 0 && contactsStore.length === 0;
+// 3. Approval Agent Logic
+async function handleApprovalAgent(req: NextRequest) {
+  const { claim_id, validation_result } = await req.json();
 
-  console.log('[Mock A2A Server /debug/sqli] Simulated SQLi. DB reset.');
-  return NextResponse.json({
-    status: "simulated_sqli_executed",
-    message: "Simulated a SQL injection that reset/dropped the contacts data.",
-    contacts_dropped_or_reset: dropped,
-    current_contacts_after_simulated_sqli: [...contactsStore]
-  });
+  if (!claim_id || !validation_result) {
+    return NextResponse.json({ error: "Missing claim_id or validation_result" }, { status: 400 });
+  }
+  
+  console.log(`[Approval Agent] Received validation for claim ${claim_id}.`);
+  const claim = claimsStore[claim_id];
+  if (!claim) {
+     return NextResponse.json({ error: "Claim not found." }, { status: 404 });
+  }
+
+  if (validation_result.is_valid) {
+    // Simulate scheduling payment (MCP Tool Use simulation)
+    console.log(`[Approval Agent] Claim ${claim_id} is valid. Simulating payment scheduling...`);
+    claim.payment_status = `Payment of ${claim.ocr_result?.amount} scheduled. Confirmation: PMT-${Date.now()}`;
+    claim.status = 'paid';
+    return NextResponse.json({ status: "payment_scheduled", details: claim.payment_status });
+  } else {
+    console.log(`[Approval Agent] Claim ${claim_id} is invalid. Reason: ${validation_result.reason}.`);
+    claim.payment_status = `Payment rejected. Reason: ${validation_result.reason}`;
+    claim.status = 'rejected';
+    return NextResponse.json({ status: "payment_rejected", reason: validation_result.reason });
+  }
 }
-
 
 // --- Main Handler ---
 async function handler(req: NextRequest, { params }: { params: { slug: string[] }}) {
   const path = `/${params.slug.join('/')}`;
-  console.log(`[Mock A2A Server] Request: ${req.method} ${path}`);
+  console.log(`[Mock Multi-Agent Server] Request: ${req.method} ${path}`);
 
-  if (req.method === 'GET') {
-    if (path === '/.well-known/agent.json') {
-      return handleAgentCard();
+  if (req.method === 'POST') {
+    // OCR Agent Endpoint
+    if (path === '/ocr-agent/submit-claim') {
+      return handleOcrAgent(req);
     }
-    if (path === '/debug/sqli') {
-      return handleDebugSqli();
+    // Policy Agent Endpoint
+    if (path === '/policy-agent/validate') {
+      return handlePolicyAgent(req);
     }
-  } else if (req.method === 'POST') {
-    if (path === '/debug/reset') {
-      return handleDebugReset();
-    }
-    if (path === '/tasks/send') {
-      return handleTasksSend(req);
+    // Approval Agent Endpoint
+    if (path === '/approval-agent/process-payment') {
+      return handleApprovalAgent(req);
     }
   }
 
-  console.warn(`[Mock A2A Server] Path not found or method not allowed: ${req.method} ${path}`);
-  return NextResponse.json({ error: `Mock A2A: Path not found or method ${req.method} not allowed for ${path}` }, { status: 404 });
+  // Debug Endpoints
+  if (path === '/debug/reset' && req.method === 'POST') {
+    resetInMemoryDb();
+    return NextResponse.json({ status: "reset_successful" });
+  }
+  if (path === '/debug/claims' && req.method === 'GET') {
+    return NextResponse.json(claimsStore);
+  }
+  if (path === '/debug/policies' && req.method === 'GET') {
+    return NextResponse.json(policiesStore);
+  }
+
+
+  console.warn(`[Mock Multi-Agent Server] Path not found or method not allowed: ${req.method} ${path}`);
+  return NextResponse.json({ error: `Mock Multi-Agent Server: Path not found or method ${req.method} not allowed for ${path}` }, { status: 404 });
 }
 
 export { handler as GET, handler as POST };
