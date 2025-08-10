@@ -61,7 +61,7 @@ Based *only* on this specification, analyze potential untraceability issues. Con
 
 Simulate 2-3 scenarios or conceptual points related to untraceability based on the specification. For each:
 1.  **Test Objective/Scenario:** (e.g., "Assess impact of minimal logging on tracing a 'drop' command.")
-2.  **Simulated Client Action(s) (if applicable):** (e.g., "Attacker sends POST to '/tasks/send' with text: \"drop\".")
+2.  **Simulated Client Action(s) (if applicable):** (e.g., "Attacker sends POST to '/tasks/send' with text: \\"drop\\".")
 3.  **Predicted Traceability Issues (Based on Spec):** (e.g., "The spec says logging is minimal. The 'drop' command would execute. Only a console log on the server (if any for this specific action) would note it. No persistent, auditable record within the application's data store or a dedicated audit log is mentioned.")
 4.  **Vulnerability Judgment:** (Is there an untraceability vulnerability?)
 
