@@ -15,5 +15,7 @@ import '@/ai/flows/red-team-agent-impact-chain.ts';
 import '@/ai/flows/red-team-checker-out-of-the-loop.ts';
 import '@/ai/flows/red-team-agent-orchestration.ts';
 import '@/ai/flows/discover-a2a-server-flow.ts';
+import '@/ai/flows/discover-external-a2a-agent-flow.ts'; // Import the new discovery flow
 import '@/ai/tools/http-tool.ts'; // Import the http-tool
+
 

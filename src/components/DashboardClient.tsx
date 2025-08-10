@@ -12,10 +12,12 @@ import { THREAT_CATEGORIES, type ThreatCategoryResult, normalizeFlowOutput, type
 import { ThreatCategoryCard } from "./ThreatCategoryCard";
 import { VulnerabilityReportView } from "./VulnerabilityReportView";
 import { InteractionLogView } from "./InteractionLogView";
-import { ShieldCheck, AlertTriangle, RefreshCw, Search } from "lucide-react";
+import { ShieldCheck, AlertTriangle, RefreshCw, Search, Link } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { discoverA2AServer, type DiscoverA2AServerOutput } from "@/ai/flows/discover-a2a-server-flow";
+import { discoverExternalA2AAgent } from "@/ai/flows/discover-external-a2a-agent-flow";
 import { ProgressDialog } from "./ProgressDialog";
+import { Input } from "./ui/input";
 
 
 type ThreatCategoryStatus = "idle" | "loading" | "success" | "error";
@@ -28,6 +30,8 @@ export function DashboardClient() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"report" | "log">("report");
   const [isDiscovering, setIsDiscovering] = useState<boolean>(false);
+  const [isExternalDiscovering, setIsExternalDiscovering] = useState<boolean>(false);
+  const [externalAgentUrl, setExternalAgentUrl] = useState<string>("");
   const [isTestRunning, setIsTestRunning] = useState<boolean>(false);
   const { toast } = useToast();
 
@@ -73,6 +77,42 @@ export function DashboardClient() {
       setIsDiscovering(false);
     }
   };
+
+  const handleDiscoverExternalAgent = async () => {
+    if (!externalAgentUrl) {
+      toast({
+        title: "URL Required",
+        description: "Please enter the base URL of the external A2A agent.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsExternalDiscovering(true);
+    try {
+      const output = await discoverExternalA2AAgent({ baseUrl: externalAgentUrl });
+      if (output && output.endpoints && output.serverContextDescription) {
+        setA2aServerSpec(JSON.stringify(output, null, 2));
+        toast({
+          title: "External Agent Discovered",
+          description: "The agent's specification has been populated in the text area.",
+        });
+      } else {
+        throw new Error("Discovery of external agent failed to produce a valid specification.");
+      }
+    } catch (error) {
+      console.error("[DashboardClient] Error in handleDiscoverExternalAgent:", error);
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during external discovery.";
+      setA2aServerSpec(`Error: Could not generate specification from external agent at ${externalAgentUrl}.\n${errorMessage}`);
+      toast({
+        title: "External Discovery Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsExternalDiscovering(false);
+    }
+  };
+
 
   const handleRunTest = async (categoryId: string) => {
     if (!a2aServerSpec && categoryId !== 'supplyChain') { // supplyChain might not need a spec
@@ -168,22 +208,33 @@ export function DashboardClient() {
               <CardHeader>
                 <CardTitle className="font-headline text-xl">A2A Server Specification (JSON)</CardTitle>
                 <CardDescription>
-                  Paste the A2A server specification as JSON, or click Discover to generate a mock specification.
+                  The specification used for testing. Populate this by discovering a mock or external agent.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <Textarea
-                  placeholder="Paste A2A server specification (JSON format) here, or click 'Discover & Generate' below..."
+                  placeholder="The discovered A2A server specification (in JSON format) will appear here..."
                   value={a2aServerSpec}
                   onChange={handleSpecChange}
                   className="min-h-[150px] font-code text-sm"
                   rows={8}
                 />
-                <Button 
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                 <CardTitle className="font-headline text-xl">1. Test a Mock Server</CardTitle>
+                 <CardDescription>
+                   Generate a specification for the embedded mock A2A server.
+                 </CardDescription>
+              </CardHeader>
+              <CardContent>
+                 <Button 
                   onClick={handleDiscoverServer} 
-                  disabled={isDiscovering}
+                  disabled={isDiscovering || isExternalDiscovering}
                   variant="outline"
-                  className="mt-3 w-full"
+                  className="w-full"
                 >
                   {isDiscovering ? (
                     <>
@@ -193,12 +244,48 @@ export function DashboardClient() {
                   ) : (
                     <>
                       <Search className="mr-2 h-4 w-4" />
-                      Discover & Generate Mock A2A Server Spec (JSON)
+                      Discover Mock A2A Server Spec
                     </>
                   )}
                 </Button>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-headline text-xl">2. Test an External Agent</CardTitle>
+                <CardDescription>
+                  Enter an agent's base URL to discover its `/.well-known/agent.json` spec.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Input 
+                  placeholder="https://example-agent.com"
+                  value={externalAgentUrl}
+                  onChange={(e) => setExternalAgentUrl(e.target.value)}
+                  disabled={isDiscovering || isExternalDiscovering}
+                />
+                <Button 
+                  onClick={handleDiscoverExternalAgent} 
+                  disabled={isDiscovering || isExternalDiscovering}
+                  variant="outline"
+                  className="mt-3 w-full"
+                >
+                  {isExternalDiscovering ? (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      Discovering Agent...
+                    </>
+                  ) : (
+                    <>
+                      <Link className="mr-2 h-4 w-4" />
+                      Discover External Agent
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+
 
             <Card className="flex-grow flex flex-col min-h-0">
               <CardHeader>
