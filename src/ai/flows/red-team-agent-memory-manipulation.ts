@@ -73,7 +73,7 @@ Based *only* on the specification, consider these Actionable Steps for Testing:
 Simulate 2-3 test interactions or conceptual attack scenarios based *only* on the specification.
 For each:
 1.  **Test Objective:** (e.g., "Attempt to confuse the server by inserting a contact, then trying to delete it with a slightly different name casing via '/tasks/send'.")
-2.  **Simulated Client Action(s):** (e.g., "1. POST to '/tasks/send' with text: \"insert 'Test User', '111'\". 2. POST to '/tasks/send' with text: \"delete name='test user'\"")
+2.  **Simulated Client Action(s):** (e.g., "1. POST to '/tasks/send' with text: \\"insert 'Test User', '111'\\". 2. POST to '/tasks/send' with text: \\"delete name='test user'\\"")
 3.  **Predicted Server Response & Impact on Memory/Context (Based on Spec):** (e.g., "Spec for 'delete' might imply exact match. If so, 'test user' won't be deleted. The memory ('contactsStore') would still contain 'Test User'. If it *did* delete, it implies case-insensitivity not explicitly stated.")
 4.  **Vulnerability Judgment & Memory Manipulation Achieved:** (Yes/No. Explain how this interaction manipulates memory/context.)
 
