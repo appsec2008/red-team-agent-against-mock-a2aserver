@@ -147,7 +147,7 @@ export const THREAT_CATEGORIES: ThreatCategory[] = [
 
 export function normalizeFlowOutput(output: AiFlowOutput, categoryId: string): ThreatCategoryResult {
   // Check for the specific output structure of redTeamAgentSupplyChain
-  if (categoryId === 'supplyChain' && output && typeof output === 'object' && 'vulnerabilityReport' in output && 'interactionLog' in output && !('vulnerabilities' in output)) {
+  if (categoryId === 'supplyChain' && output && typeof output === 'object' && 'vulnerabilityReport' in output && 'interactionLog' in output) {
     // This is already the desired ThreatCategoryResult structure
      return {
       vulnerabilityReport: output.vulnerabilityReport,

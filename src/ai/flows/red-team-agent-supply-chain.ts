@@ -28,7 +28,14 @@ export type RedTeamAgentSupplyChainOutput = z.infer<
 export async function redTeamAgentSupplyChain(): Promise<
   RedTeamAgentSupplyChainOutput
 > {
-  return redTeamAgentSupplyChainFlow({});
+  const { output } = await redTeamAgentSupplyChainFlow({});
+  if (!output) {
+      return {
+          vulnerabilityReport: "Error: No output from supply chain prompt.",
+          interactionLog: "No interaction data due to prompt error."
+      }
+  }
+  return output;
 }
 
 const prompt = ai.definePrompt({
