@@ -1,4 +1,3 @@
-
 // src/ai/flows/red-team-agent-orchestration.ts
 'use server';
 
@@ -30,14 +29,17 @@ export type RedTeamAgentOrchestrationOutput = z.infer<typeof RedTeamAgentOrchest
 export async function redTeamAgentOrchestration(
   input: RedTeamAgentOrchestrationInput
 ): Promise<RedTeamAgentOrchestrationOutput> {
-  const {output} = await redTeamAgentOrchestrationFlow(input);
-   if (!output) {
-      return {
-        vulnerabilityReport: "Error: No output from Agent Orchestration prompt. The AI model might have returned an empty response or failed to adhere to the output schema.",
-        interactionLog: "Interaction log unavailable due to an error in generating a response from the AI model for Agent Orchestration."
-      };
-    }
-  return output;
+  const output = await redTeamAgentOrchestrationFlow(input);
+  if (output) {
+    return output;
+  }
+  
+  // This part is a fallback, in case the flow somehow returns a null/undefined output.
+  console.error("[Orchestration Flow] Failed to get structured output from flow.");
+  return {
+    vulnerabilityReport: "Error: The AI model returned an empty or invalid response for Agent Orchestration. The flow itself failed to produce a structured output.",
+    interactionLog: `The flow executed, but no structured output was generated. This may indicate a fundamental problem with the AI's response format or a failure to follow instructions.`,
+  };
 }
 
 const redTeamAgentOrchestrationPrompt = ai.definePrompt({
