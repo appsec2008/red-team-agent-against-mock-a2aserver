@@ -28,14 +28,17 @@ export type RedTeamAgentSupplyChainOutput = z.infer<
 export async function redTeamAgentSupplyChain(): Promise<
   RedTeamAgentSupplyChainOutput
 > {
-  const { output } = await redTeamAgentSupplyChainFlow({});
-  if (!output) {
-      return {
-          vulnerabilityReport: "Error: No output from supply chain prompt.",
-          interactionLog: "No interaction data due to prompt error."
-      }
+  const output = await redTeamAgentSupplyChainFlow({});
+  if (output) {
+    return output;
   }
-  return output;
+  
+  // This part is a fallback, in case the flow somehow returns a null/undefined output.
+  console.error("[Supply Chain Flow] Failed to get structured output from flow.");
+  return {
+    vulnerabilityReport: "Error: The AI model returned an empty or invalid response for Agent Supply Chain. The flow itself failed to produce a structured output.",
+    interactionLog: `The flow executed, but no structured output was generated. This may indicate a fundamental problem with the AI's response format or a failure to follow instructions.`,
+  };
 }
 
 const prompt = ai.definePrompt({
@@ -64,12 +67,8 @@ const redTeamAgentSupplyChainFlow = ai.defineFlow(
   },
   async () => {
     const {output} = await prompt({}); 
-    if (!output) {
-        return {
-            vulnerabilityReport: "Error: No output from supply chain prompt.",
-            interactionLog: "No interaction data due to prompt error."
-        }
-    }
-    return output;
+    // By returning output!, we rely on Genkit's built-in validation to either return
+    // the correctly parsed object or throw an error, which will be caught by the caller.
+    return output!;
   }
 );
