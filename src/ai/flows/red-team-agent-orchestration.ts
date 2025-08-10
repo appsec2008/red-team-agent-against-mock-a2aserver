@@ -44,27 +44,28 @@ const redTeamAgentOrchestrationPrompt = ai.definePrompt({
   name: 'redTeamAgentOrchestrationPrompt',
   input: {schema: RedTeamAgentOrchestrationInputSchema},
   output: {schema: RedTeamAgentOrchestrationOutputSchema},
-  prompt: `You are a security analyst tasked with red teaming an A2A server to find "Agent Orchestration and Multi-Agent Exploitation" vulnerabilities, based on its provided specification.
+  prompt: `You are a security expert specializing in AI red teaming for "Agent Orchestration and Multi-Agent Exploitation" vulnerabilities.
 
-A2A Server Specification (JSON string - parse this to understand endpoints, context, and commands like 'insert', 'delete', 'drop', 'show', 'attack env' for '/tasks/send'):
+A2A Server Specification to Analyze (this is a JSON string, parse it to understand the 3-agent insurance claim system):
 {{{a2aServerSpecification}}}
 
-The mock server is simple and doesn't have explicit multi-agent orchestration features. However, analyze its specification to consider:
-1.  **Race Conditions/Shared State:** If multiple conceptual "agents" (clients) were to interact with the server's endpoints (especially '/tasks/send' which modifies 'contactsStore') simultaneously or in rapid succession, could this lead to unintended states or conflicts based on the described behavior? (e.g., two agents trying to 'insert' or 'delete' concurrently).
-2.  **Exploiting Sequential Logic:** Can one (conceptual) agent's action via an endpoint create a state that a second (conceptual) agent can then exploit? (e.g., Agent A issues a 'drop' command to '/tasks/send'. Agent B, expecting data, then issues a 'show' command. How does the spec say the server responds to Agent B?).
-3.  **Denial of Service through Orchestration:** Could multiple agents, by sending coordinated commands to '/tasks/send' or other endpoints, overwhelm the server as described or cause a denial of service for other users (even if simulated)?
+Based *only* on the provided specification for the multi-agent insurance claim system (OCR, Policy, Approval agents), analyze how the orchestration could be exploited.
 
-Simulate 2-3 scenarios based *only* on the specification, involving at least two conceptual agents (Agent A, Agent B). For each:
-1.  **Scenario Objective:** (e.g., "Test for race condition during concurrent 'insert' operations by Agent A and Agent B to '/tasks/send'.")
-2.  **Simulated Actions (Agent A & Agent B):** (Describe the sequence of commands/requests each agent sends to endpoints from the spec.)
-    *   Agent A: (e.g., POST to '/tasks/send', text: "insert 'Contact A', '123'")
-    *   Agent B: (e.g., POST to '/tasks/send', text: "insert 'Contact B', '456'")
-3.  **Predicted Outcome & Server State (Based on Spec):** (How would the 'contactsStore' look? Would both contacts be inserted? Would one overwrite the other if IDs clashed, or if the logic is purely sequential?)
-4.  **Vulnerability Judgment:** (Is there an orchestration-related vulnerability? E.g., "If inserts are not atomic and ID generation is naive, concurrent inserts could lead to data loss or corruption, violating data integrity in a multi-agent scenario.")
+Consider these points based *only* on the specification:
+1.  **Bypassing the Orchestration Flow:** The intended flow is OCR -> Policy -> Approval. Can an attacker call the internal agents directly? For example, can they call the '/policy-agent/validate' or '/approval-agent/process-payment' endpoints with crafted data, bypassing the initial OCR step?
+2.  **Race Conditions & Shared State:** The agents interact with a shared 'claimsStore'. If multiple OCR agents process claims for the same policy simultaneously, or if an attacker rapidly sends requests, could this lead to inconsistent states, race conditions, or data corruption in the 'claimsStore'?
+3.  **Data Poisoning in the Chain:** If the OCR agent is compromised or sends malicious data, how does the specification say the downstream Policy and Approval agents will react? Do they blindly trust the data from the previous agent in the chain?
+4.  **Denial of Service:** Could a flood of requests to the initial '/ocr-agent/submit-claim' endpoint overwhelm the downstream Policy and Approval agents, causing a denial of service for legitimate claims? The spec doesn't mention rate limiting.
+
+Simulate 2-3 scenarios based on these points. For each:
+1.  **Scenario Objective:** (e.g., "Test for direct access vulnerability by calling the Approval Agent to bypass OCR and Policy checks.")
+2.  **Simulated Attacker Action(s):** (Describe the sequence of HTTP requests the attacker would make to endpoints from the spec. e.g., "Attacker sends a POST request directly to '/approval-agent/process-payment' with a completely fabricated 'claim_id' and a 'validation_result' of 'is_valid: true'.")
+3.  **Predicted Outcome & Server State (Based on Spec):** (How would the server, as described, respond? Would it create a new claim? Would it process a payment for a non-existent claim? Analyze the impact on 'claimsStore'.)
+4.  **Vulnerability Judgment:** (Is there an orchestration-related vulnerability? E.g., "Critical Vulnerability: The Approval Agent can be called directly, bypassing all prior validation. An attacker can trigger fraudulent payments for non-existent claims.")
 
 Generate two outputs according to the output schema:
-1.  A 'vulnerabilityReport' summarizing findings.
-2.  An 'interactionLog' detailing these simulated multi-agent scenarios.
+1.  A 'vulnerabilityReport' summarizing findings on orchestration vulnerabilities.
+2.  An 'interactionLog' detailing these simulated multi-agent exploitation scenarios.
   `,
 });
 
