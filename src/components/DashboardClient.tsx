@@ -12,7 +12,7 @@ import { THREAT_CATEGORIES, type ThreatCategoryResult, normalizeFlowOutput, type
 import { ThreatCategoryCard } from "./ThreatCategoryCard";
 import { VulnerabilityReportView } from "./VulnerabilityReportView";
 import { InteractionLogView } from "./InteractionLogView";
-import { ShieldCheck, AlertTriangle, RefreshCw, Search, Link } from "lucide-react";
+import { ShieldCheck, AlertTriangle, RefreshCw, Search, Link, Network } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { discoverA2AServer, type DiscoverA2AServerOutput } from "@/ai/flows/discover-a2a-server-flow";
 import { discoverExternalA2AAgent } from "@/ai/flows/discover-external-a2a-agent-flow";
@@ -33,6 +33,7 @@ export function DashboardClient() {
   const [isExternalDiscovering, setIsExternalDiscovering] = useState<boolean>(false);
   const [externalAgentUrl, setExternalAgentUrl] = useState<string>("");
   const [isTestRunning, setIsTestRunning] = useState<boolean>(false);
+  const [architectureDiagram, setArchitectureDiagram] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleSpecChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
@@ -41,6 +42,7 @@ export function DashboardClient() {
 
   const handleDiscoverServer = async () => {
     setIsDiscovering(true);
+    setArchitectureDiagram(null); // Clear previous diagram
     try {
       const output: DiscoverA2AServerOutput = await discoverA2AServer();
       // Log the received output for debugging
@@ -48,9 +50,48 @@ export function DashboardClient() {
 
       if (output && output.endpoints && Array.isArray(output.endpoints) && output.serverContextDescription) {
         setA2aServerSpec(JSON.stringify(output, null, 2)); // Store pretty-printed JSON
+        
+        const diagramMarkdown = `
+\`\`\`mermaid
+graph TD
+    subgraph "External Client"
+        A[Client]
+    end
+
+    subgraph "Next.js App (Mock A2A Server)"
+        B(OCR Agent Endpoint<br>/ocr-agent/submit-claim)
+        C(Policy Agent Endpoint<br>/policy-agent/validate)
+        D(Approval Agent Endpoint<br>/approval-agent/process-payment)
+        
+        subgraph "In-Memory State"
+            E[claimsStore]
+            F[policiesStore]
+        end
+
+    end
+
+    A -- "1. POST /submit-claim" --> B;
+    B -- "2. A2A Call (fetch)" --> C;
+    C -- "3. A2A Call (fetch)" --> D;
+
+    B -- "Writes to" --> E;
+    C -- "Reads from" --> F;
+    C -- "Writes to" --> E;
+    D -- "Writes to" --> E;
+
+    style A fill:#D1C4E9,stroke:#512DA8,stroke-width:2px
+    style B fill:#C8E6C9,stroke:#388E3C,stroke-width:2px
+    style C fill:#FFCDD2,stroke:#D32F2F,stroke-width:2px
+    style D fill:#BBDEFB,stroke:#1976D2,stroke-width:2px
+    style E fill:#FFF9C4,stroke:#FBC02D,stroke-width:1px
+    style F fill:#FFF9C4,stroke:#FBC02D,stroke-width:1px
+\`\`\`
+`;
+        setArchitectureDiagram(diagramMarkdown);
+
         toast({
           title: "Mock Server Specification Generated",
-          description: "The A2A server specification (as JSON) has been populated in the text area.",
+          description: "The A2A server specification and architecture diagram have been generated.",
         });
       } else {
         let debugMessage = "Generated specification was invalid or incomplete.";
@@ -88,6 +129,7 @@ export function DashboardClient() {
       return;
     }
     setIsExternalDiscovering(true);
+    setArchitectureDiagram(null); // Clear diagram for external agents
     try {
       const output = await discoverExternalA2AAgent({ baseUrl: externalAgentUrl });
       if (output && output.endpoints && output.serverContextDescription) {
@@ -314,6 +356,19 @@ export function DashboardClient() {
 
           {/* Right Panel */}
           <div className="md:col-span-2 flex flex-col min-h-0">
+            {architectureDiagram && (
+              <Card className="mb-6">
+                <CardHeader>
+                  <CardTitle className="font-headline text-lg flex items-center gap-2">
+                    <Network /> Mock Server Architecture
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                   <VulnerabilityReportView report={architectureDiagram} />
+                </CardContent>
+              </Card>
+            )}
+
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "report" | "log")} className="flex-grow flex flex-col">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="report">Vulnerability Report</TabsTrigger>
@@ -370,7 +425,7 @@ export function DashboardClient() {
                 )}
               </TabsContent>
             </Tabs>
-            {!selectedCategoryId && currentStatus === "idle" && (
+            {!selectedCategoryId && currentStatus === "idle" && !architectureDiagram && (
               <Card className="h-full flex items-center justify-center mt-2">
                 <CardContent>
                   <p className="text-muted-foreground text-lg text-center">
@@ -385,3 +440,5 @@ export function DashboardClient() {
     </>
   );
 }
+
+    
