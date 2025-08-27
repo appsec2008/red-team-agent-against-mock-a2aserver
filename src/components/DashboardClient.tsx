@@ -59,9 +59,9 @@ graph TD
     end
 
     subgraph "Next.js App (Mock A2A Server)"
-        B(OCR Agent Endpoint<br>/ocr-agent/submit-claim)
-        C(Policy Agent Endpoint<br>/policy-agent/validate)
-        D(Approval Agent Endpoint<br>/approval-agent/process-payment)
+        B["OCR Agent Endpoint<br>/ocr-agent/submit-claim"]
+        C["Policy Agent Endpoint<br>/policy-agent/validate"]
+        D["Approval Agent Endpoint<br>/approval-agent/process-payment"]
         
         subgraph "In-Memory State"
             E[claimsStore]
@@ -440,5 +440,3 @@ graph TD
     </>
   );
 }
-
-    
